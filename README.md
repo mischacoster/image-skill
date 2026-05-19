@@ -34,9 +34,11 @@ filled in inside the file, or the env vars `OPENAI_API_KEY` /
 ## Requirements
 
 - Python 3.9+
-- An OpenAI API key (with GPT-Image-2 access)
-- A Google Gemini API key (with Nano Banana / NB2 / Pro access)
-- Python packages: `openai`, `google-genai`, `pillow`
+- An **OpenAI API key** with GPT-Image-2 access — create one at
+  [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+- A **Google Gemini API key** with Nano Banana / NB2 / Pro access — create one at
+  [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+- Python packages: `openai`, `google-genai`, `pillow` (the installer handles this)
 
 ---
 
@@ -313,4 +315,12 @@ Session state lives per project folder in `./.image-sessions/{name}.json`.
 | `install.command` | macOS double-click launcher for `setup.py` (non-tech) |
 | `image.skill` | Generated bundle with keys — **not** in git (`.gitignore`) |
 | `README.md` | This file |
+| `LICENSE` | MIT license |
 | `.gitignore` | Keeps keys, output, bundle and session state out of git |
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE). Fork, adapt and share freely; attribution
+appreciated but not required.
