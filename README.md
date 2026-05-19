@@ -42,34 +42,68 @@ ingevulde key in het bestand óf de env vars `OPENAI_API_KEY` /
 
 ## Installatie
 
+### Aanbevolen: via het setup-script
+
 ```bash
-# 1. Clone naar de Claude skills-map (zo pikt Claude Code de skill op)
+git clone https://github.com/mischacoster/image-skill.git
+cd image-skill
+./setup.py
+```
+
+Het script vraagt interactief om je OpenAI- en Gemini-key (verborgen invoer,
+niet in shell-history), installeert de Python-dependencies, plaatst de skill
+in `~/.claude/skills/image/` voor **Claude Code**, en bouwt een
+`image.skill` bundel die je in **claude.ai** of de **Claude desktop app**
+kunt importeren via *Settings → Skills*.
+
+Handige flags:
+
+```bash
+./setup.py --no-deps          # skip pip install (al gedaan)
+./setup.py --no-local         # alleen bundel, geen lokale install
+./setup.py --no-bundle        # alleen lokale install, geen bundel
+./setup.py --bundle-path ~/Desktop/image.skill
+./setup.py --yes              # accepteer alle bevestigingen
+./setup.py --help
+```
+
+> **⚠ Security:** het `image.skill` bestand bevat je betaalde API-keys.
+> Behandel het als een wachtwoord — niet committen, niet in iCloud/Dropbox,
+> niet zonder reden doorsturen. Iedereen met dit bestand kan API-calls op
+> jouw rekening doen. Het script schrijft het bestand met permissies `600`
+> (alleen jij kunt het lezen).
+
+### Importeren in claude.ai of Claude desktop
+
+1. Open *Settings → Skills* (of *Capabilities → Skills*).
+2. Kies *Create skill* / *Upload* en selecteer `image.skill`.
+3. Eerste call in een nieuwe sessie: de sandbox installeert automatisch de
+   Python-deps (~10–20s overhead). Daarna draait het normaal.
+
+### Handmatig (zonder setup-script)
+
+```bash
 git clone https://github.com/mischacoster/image-skill.git ~/.claude/skills/image
 cd ~/.claude/skills/image
-
-# 2. Dependencies
 pip3 install openai google-genai pillow
-
-# 3. Maak je eigen werkende script van het template
 cp generate.example.py generate.py
 ```
 
-Open daarna `generate.py` en vul bovenin (regels 75–76) je keys in:
+Open `generate.py` en vul bovenin (regels 75–76) je keys in:
 
 ```python
 OPENAI_API_KEY = "sk-proj-..."   # jouw OpenAI key
 GEMINI_API_KEY = "AIza..."       # jouw Gemini key
 ```
 
-Of laat ze leeg en zet in plaats daarvan environment variables:
+Of laat ze leeg en zet environment variables:
 
 ```bash
 export OPENAI_API_KEY="sk-proj-..."
 export GEMINI_API_KEY="AIza..."
 ```
 
-Klaar. In Claude Code/claude.ai roep je de skill aan met `/image` of door
-gewoon om een afbeelding te vragen. Standalone werkt het ook:
+Standalone draaien werkt ook:
 
 ```bash
 python3 ~/.claude/skills/image/generate.py "een minimalistisch brein-logo" --hq --gpt
@@ -243,5 +277,7 @@ Sessie-state staat per projectmap in `./.image-sessions/{name}.json`.
 | `SKILL.md` | Skill-instructies voor Claude (beslis-flow, provider-keuze) |
 | `generate.example.py` | Het script zónder keys — kopieer naar `generate.py` |
 | `generate.py` | Jouw werkende script mét keys — **niet** in git (`.gitignore`) |
+| `setup.py` | Setup-script: deps, keys, lokale install + bundel-build |
+| `image.skill` | Gegenereerde bundel mét keys — **niet** in git (`.gitignore`) |
 | `README.md` | Dit bestand |
-| `.gitignore` | Houdt keys, output en sessie-state buiten git |
+| `.gitignore` | Houdt keys, output, bundel en sessie-state buiten git |

@@ -29,3 +29,7 @@ venv/
 *.jpeg
 *.webp
 [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*.txt
+
+# Setup-script output: bundel bevat API-keys, NOOIT committen
+*.skill
+image.zip
