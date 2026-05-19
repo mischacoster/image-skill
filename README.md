@@ -40,23 +40,29 @@ ingevulde key in het bestand óf de env vars `OPENAI_API_KEY` /
 
 ---
 
-## Installatie
+## Automatische installatie (aanbevolen)
 
-### Niet-technisch & op macOS? Dubbelklik
+De automatische route doet alles voor je: dependencies installeren, je keys
+veilig uitvragen, de skill plaatsen in `~/.claude/skills/image/` (voor Claude
+Code) en een `image.skill` bundel bouwen (voor import in claude.ai / Claude
+desktop). Je hoeft niets te kopiëren, hernoemen of regelnummers op te zoeken.
+
+Kies één van de twee onderstaande routes — beide leiden naar hetzelfde
+resultaat.
+
+### Route A — macOS dubbelklik (geen terminal nodig)
 
 Krijg je deze repo als ZIP? Pak hem uit en **dubbelklik op `install.command`**
-in Finder. Terminal opent automatisch en doorloopt de installatie. Niets
-typen, geen commando's onthouden.
+in Finder. Terminal opent automatisch en doorloopt de installer.
 
 > **Eerste keer:** macOS Gatekeeper kan zeggen *"cannot be opened because
-> it is from an unidentified developer"*. Klik dan met de rechtermuisknop
+> it is from an unidentified developer"*. Klik dan met de **rechtermuisknop**
 > op `install.command` → **Open** → **Open**. Dat hoeft maar één keer.
 >
-> **Lukt dubbelklikken niet?** (Bijv. omdat de uitvoerrechten verloren
-> gingen tijdens het uitpakken.) Open Terminal, sleep `install.command`
-> erin, druk op Enter.
+> **Lukt dubbelklikken niet?** Open Terminal, sleep `install.command` erin,
+> druk op Enter.
 
-### Aanbevolen: via het setup-script (alle platforms)
+### Route B — Terminal (alle platforms)
 
 ```bash
 git clone https://github.com/mischacoster/image-skill.git
@@ -64,16 +70,19 @@ cd image-skill
 ./setup.py
 ```
 
-Het script vraagt interactief om je OpenAI- en Gemini-key (verborgen invoer,
-niet in shell-history), installeert de Python-dependencies, plaatst de skill
-in `~/.claude/skills/image/` voor **Claude Code**, en bouwt een
-`image.skill` bundel die je in **claude.ai** of de **Claude desktop app**
-kunt importeren via *Settings → Skills*.
+### Wat doet de installer?
 
-Handige flags:
+Beide routes draaien `setup.py` en doorlopen achter de schermen:
+
+1. **Dependencies** — installeert `openai`, `google-genai`, `pillow` via pip
+2. **Keys** — vraagt je OpenAI- en Gemini-key (verborgen invoer, niet in shell-history)
+3. **Lokale install** — schrijft `~/.claude/skills/image/{SKILL.md, generate.py}` met permissies `600` (Claude Code pikt dit automatisch op)
+4. **Bundel** — bouwt `image.skill` in de huidige map (mode `600`) voor import in claude.ai / desktop
+
+### Handige flags
 
 ```bash
-./setup.py --no-deps          # skip pip install (al gedaan)
+./setup.py --no-deps          # skip pip install (als deps er al staan)
 ./setup.py --no-local         # alleen bundel, geen lokale install
 ./setup.py --no-bundle        # alleen lokale install, geen bundel
 ./setup.py --bundle-path ~/Desktop/image.skill
@@ -81,11 +90,11 @@ Handige flags:
 ./setup.py --help
 ```
 
-> **⚠ Security:** het `image.skill` bestand bevat je betaalde API-keys.
-> Behandel het als een wachtwoord — niet committen, niet in iCloud/Dropbox,
-> niet zonder reden doorsturen. Iedereen met dit bestand kan API-calls op
-> jouw rekening doen. Het script schrijft het bestand met permissies `600`
-> (alleen jij kunt het lezen).
+> **⚠ Security — `image.skill` bevat je API-keys.**
+> Behandel het als een wachtwoord: niet committen, niet in iCloud/Dropbox,
+> niet zonder reden doorsturen. Iedereen met dit bestand kan betaalde
+> API-calls op jouw rekening doen. Het script schrijft mode `600` zodat
+> alleen jij het kunt lezen.
 
 ### Importeren in claude.ai of Claude desktop
 
@@ -94,7 +103,13 @@ Handige flags:
 3. Eerste call in een nieuwe sessie: de sandbox installeert automatisch de
    Python-deps (~10–20s overhead). Daarna draait het normaal.
 
-### Handmatig (zonder setup-script)
+---
+
+## Handmatige installatie
+
+> Alleen nodig als je het setup-script niet wilt gebruiken. De automatische
+> route hierboven doet alles wat hier handmatig moet — kies dus één van
+> beide, niet beide.
 
 ```bash
 git clone https://github.com/mischacoster/image-skill.git ~/.claude/skills/image
@@ -110,7 +125,9 @@ OPENAI_API_KEY = "sk-proj-..."   # jouw OpenAI key
 GEMINI_API_KEY = "AIza..."       # jouw Gemini key
 ```
 
-Of laat ze leeg en zet environment variables:
+Of laat ze leeg en zet in plaats daarvan environment variables (werkt alleen
+in lokaal Claude Code, niet in claude.ai/desktop — daar móét de key in het
+bestand staan):
 
 ```bash
 export OPENAI_API_KEY="sk-proj-..."
