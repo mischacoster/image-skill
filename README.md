@@ -42,7 +42,21 @@ ingevulde key in het bestand óf de env vars `OPENAI_API_KEY` /
 
 ## Installatie
 
-### Aanbevolen: via het setup-script
+### Niet-technisch & op macOS? Dubbelklik
+
+Krijg je deze repo als ZIP? Pak hem uit en **dubbelklik op `install.command`**
+in Finder. Terminal opent automatisch en doorloopt de installatie. Niets
+typen, geen commando's onthouden.
+
+> **Eerste keer:** macOS Gatekeeper kan zeggen *"cannot be opened because
+> it is from an unidentified developer"*. Klik dan met de rechtermuisknop
+> op `install.command` → **Open** → **Open**. Dat hoeft maar één keer.
+>
+> **Lukt dubbelklikken niet?** (Bijv. omdat de uitvoerrechten verloren
+> gingen tijdens het uitpakken.) Open Terminal, sleep `install.command`
+> erin, druk op Enter.
+
+### Aanbevolen: via het setup-script (alle platforms)
 
 ```bash
 git clone https://github.com/mischacoster/image-skill.git
@@ -278,6 +292,7 @@ Sessie-state staat per projectmap in `./.image-sessions/{name}.json`.
 | `generate.example.py` | Het script zónder keys — kopieer naar `generate.py` |
 | `generate.py` | Jouw werkende script mét keys — **niet** in git (`.gitignore`) |
 | `setup.py` | Setup-script: deps, keys, lokale install + bundel-build |
+| `install.command` | macOS dubbelklik-launcher voor `setup.py` (non-tech) |
 | `image.skill` | Gegenereerde bundel mét keys — **niet** in git (`.gitignore`) |
 | `README.md` | Dit bestand |
 | `.gitignore` | Houdt keys, output, bundel en sessie-state buiten git |
