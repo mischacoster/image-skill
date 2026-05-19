@@ -2,21 +2,21 @@
 """
 Image Skill — setup script.
 
-Installeert dependencies, vraagt API-keys, plaatst de skill in
-~/.claude/skills/image/ (voor Claude Code) en bouwt een image.skill bundel
-die je in claude.ai / Claude desktop kunt importeren.
+Installs dependencies, asks for API keys, places the skill in
+~/.claude/skills/image/ (for Claude Code) and builds an image.skill bundle
+that you can import into claude.ai / Claude desktop.
 
-Veiligheid: het gegenereerde image.skill bestand bevat je betaalde API-keys.
-Behandel het als een wachtwoord — niet committen, niet in iCloud/Dropbox,
-niet doorsturen.
+Security: the generated image.skill file contains your paid API keys.
+Treat it like a password — don't commit it, don't put it in iCloud/Dropbox,
+don't share it.
 
-Voorbeelden:
-  ./setup.py                       # interactief, alles in één keer
+Examples:
+  ./setup.py                       # interactive, everything in one run
   ./setup.py --no-deps             # skip pip install
-  ./setup.py --no-local            # alleen bundel, geen ~/.claude/skills install
-  ./setup.py --no-bundle           # alleen lokale install
+  ./setup.py --no-local            # bundle only, no ~/.claude/skills install
+  ./setup.py --no-bundle           # local install only
   ./setup.py --bundle-path ~/Desktop/image.skill
-  ./setup.py --yes                 # accepteer alle bevestigingen (CI / scripted)
+  ./setup.py --yes                 # accept all prompts (CI / scripted)
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ import zipfile
 from pathlib import Path
 
 # ----------------------------------------------------------------------------
-# Locatie van de repo (waar dit script staat) en de skill-installatiemap
+# Repo location (where this script lives) and the skill install directory
 # ----------------------------------------------------------------------------
 REPO_DIR = Path(__file__).resolve().parent
 TEMPLATE = REPO_DIR / "generate.example.py"
@@ -43,7 +43,7 @@ PIP_PACKAGES = ["openai", "google-genai", "pillow"]
 
 
 # ----------------------------------------------------------------------------
-# Kleine TUI-helpers (geen externe deps)
+# Small TUI helpers (no external deps)
 # ----------------------------------------------------------------------------
 def step(msg: str) -> None:
     print(f"\n==> {msg}")
@@ -69,28 +69,28 @@ def confirm(prompt: str, default: bool, assume_yes: bool) -> bool:
         raw = input(f"  {prompt} {suffix}: ").strip().lower()
         if not raw:
             return default
-        if raw in ("y", "yes", "j", "ja"):
+        if raw in ("y", "yes"):
             return True
-        if raw in ("n", "no", "nee"):
+        if raw in ("n", "no"):
             return False
 
 
 def read_key(label: str, expect_prefix: tuple[str, ...]) -> str:
-    """Vraagt een API-key via getpass (input verborgen, niet in shell-history)."""
+    """Ask for an API key via getpass (input hidden, not in shell history)."""
     while True:
         key = getpass.getpass(f"  {label}: ").strip()
         if len(key) < 20:
-            warn("Lijkt te kort voor een geldige key. Opnieuw.")
+            warn("Looks too short for a valid key. Try again.")
             continue
         if not any(key.startswith(p) for p in expect_prefix):
-            warn(f"Verwachtte prefix {' of '.join(expect_prefix)}.")
-            if not confirm("Toch doorgaan met deze waarde?", default=False, assume_yes=False):
+            warn(f"Expected prefix {' or '.join(expect_prefix)}.")
+            if not confirm("Continue with this value anyway?", default=False, assume_yes=False):
                 continue
         return key
 
 
 # ----------------------------------------------------------------------------
-# Stappen
+# Steps
 # ----------------------------------------------------------------------------
 def check_prerequisites() -> None:
     missing = []
@@ -99,11 +99,11 @@ def check_prerequisites() -> None:
     if not SKILL_MD.exists():
         missing.append(str(SKILL_MD))
     if missing:
-        fail("Vereiste bestanden niet gevonden:")
+        fail("Required files not found:")
         for m in missing:
             print(f"      {m}", file=sys.stderr)
         print(
-            "\n  Draai dit script vanuit de geclonede image-skill repo.\n"
+            "\n  Run this script from the cloned image-skill repo.\n"
             "  (git clone https://github.com/mischacoster/image-skill.git)",
             file=sys.stderr,
         )
@@ -111,45 +111,45 @@ def check_prerequisites() -> None:
 
 
 def install_dependencies() -> None:
-    step("Python-dependencies installeren (openai, google-genai, pillow)")
+    step("Installing Python dependencies (openai, google-genai, pillow)")
     cmd = [sys.executable, "-m", "pip", "install", "--upgrade"] + PIP_PACKAGES
     print(f"  $ {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode == 0:
-        ok("Dependencies geïnstalleerd")
+        ok("Dependencies installed")
         return
 
-    # Veelvoorkomende fail-modes met begrijpelijke uitleg
+    # Common failure modes with friendly guidance
     stderr = result.stderr or ""
     print(stderr.strip().splitlines()[-1] if stderr else "")
     if "externally-managed-environment" in stderr:
         warn(
-            "Je Python is door je systeem gemanaged (Homebrew of vergelijkbaar).\n"
-            "  Mogelijke oplossingen:\n"
-            f"    • pipx install of een venv aanmaken\n"
+            "Your Python is managed by the system (Homebrew or similar).\n"
+            "  Possible solutions:\n"
+            f"    • create a venv or use pipx\n"
             f"    • {sys.executable} -m pip install --user " + " ".join(PIP_PACKAGES) + "\n"
             f"    • {sys.executable} -m pip install --break-system-packages " + " ".join(PIP_PACKAGES) + "\n"
-            "  Het setup-script gaat door — installeer de packages zelf en run opnieuw als nodig."
+            "  Setup will continue — install the packages yourself and re-run if needed."
         )
     else:
-        warn("pip install gaf een fout. Output:")
+        warn("pip install reported an error. Output:")
         print(stderr)
-        warn("Setup gaat door. Installeer de packages handmatig als de skill niet werkt.")
+        warn("Setup will continue. Install the packages manually if the skill doesn't work.")
 
 
 def render_generate_py(openai_key: str, gemini_key: str) -> str:
-    """Vervang in generate.example.py de lege key-strings door echte keys."""
+    """Replace the empty key strings in generate.example.py with real keys."""
     src = TEMPLATE.read_text(encoding="utf-8")
 
     def safe_replace(text: str, var: str, value: str) -> str:
-        # Match: VAR = "anything" (inclusief leeg) op één regel; behoud comment-staart
+        # Match: VAR = "anything" (including empty) on a single line; preserve comment tail
         pattern = rf'^({re.escape(var)}\s*=\s*)"[^"]*"'
-        # Backslash + dubbele quote in keys komt niet voor (OpenAI/Gemini formats),
-        # maar we escapen voor de zekerheid.
+        # Backslash + double quote do not occur in real OpenAI/Gemini key formats,
+        # but we escape for safety.
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
         new, n = re.subn(pattern, rf'\1"{escaped}"', text, count=1, flags=re.MULTILINE)
         if n != 1:
-            fail(f"Kon de regel met {var} niet vinden in generate.example.py")
+            fail(f"Could not find the {var} line in generate.example.py")
             sys.exit(2)
         return new
 
@@ -159,16 +159,16 @@ def render_generate_py(openai_key: str, gemini_key: str) -> str:
 
 
 def install_local(generate_py: str, assume_yes: bool) -> None:
-    step(f"Lokale install → {SKILL_INSTALL_DIR}")
+    step(f"Local install → {SKILL_INSTALL_DIR}")
     SKILL_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
 
     target_skill = SKILL_INSTALL_DIR / "SKILL.md"
     target_script = SKILL_INSTALL_DIR / "generate.py"
 
     if target_script.exists():
-        warn(f"{target_script} bestaat al (bevat mogelijk jouw bestaande keys).")
-        if not confirm("Overschrijven met nieuwe keys?", default=False, assume_yes=assume_yes):
-            warn("Lokale generate.py overgeslagen.")
+        warn(f"{target_script} already exists (may contain your existing keys).")
+        if not confirm("Overwrite with new keys?", default=False, assume_yes=assume_yes):
+            warn("Skipped local generate.py.")
         else:
             target_script.write_text(generate_py, encoding="utf-8")
             os.chmod(target_script, 0o600)
@@ -183,16 +183,16 @@ def install_local(generate_py: str, assume_yes: bool) -> None:
 
 
 def build_bundle(generate_py: str, bundle_path: Path, assume_yes: bool) -> None:
-    step(f"Bundel bouwen → {bundle_path}")
+    step(f"Building bundle → {bundle_path}")
     if bundle_path.exists():
-        warn(f"{bundle_path} bestaat al.")
-        if not confirm("Overschrijven?", default=True, assume_yes=assume_yes):
-            warn("Bundel overgeslagen.")
+        warn(f"{bundle_path} already exists.")
+        if not confirm("Overwrite?", default=True, assume_yes=assume_yes):
+            warn("Skipped bundle.")
             return
 
     bundle_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Bundel-structuur: image/SKILL.md + image/generate.py (top-level map 'image')
+    # Bundle structure: image/SKILL.md + image/generate.py (top-level dir 'image')
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp) / "image"
         tmp_path.mkdir()
@@ -204,7 +204,7 @@ def build_bundle(generate_py: str, bundle_path: Path, assume_yes: bool) -> None:
                 zf.write(f, arcname=f"image/{f.name}")
 
     os.chmod(bundle_path, 0o600)
-    ok(f"Wrote {bundle_path} (mode 600, bevat je API-keys)")
+    ok(f"Wrote {bundle_path} (mode 600, contains your API keys)")
 
 
 # ----------------------------------------------------------------------------
@@ -212,40 +212,40 @@ def build_bundle(generate_py: str, bundle_path: Path, assume_yes: bool) -> None:
 # ----------------------------------------------------------------------------
 def main() -> int:
     p = argparse.ArgumentParser(
-        description="Image Skill setup — installeert deps, vraagt keys, plaatst de skill en bouwt een import-bundel.",
+        description="Image Skill setup — installs deps, asks for keys, places the skill and builds an import bundle.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Veiligheid: het gegenereerde .skill bestand bevat je API-keys. Behandel het als wachtwoord.",
+        epilog="Security: the generated .skill file contains your API keys. Treat it like a password.",
     )
-    p.add_argument("--openai-key", help="OpenAI API key (anders interactief gevraagd)")
-    p.add_argument("--gemini-key", help="Gemini API key (anders interactief gevraagd)")
+    p.add_argument("--openai-key", help="OpenAI API key (otherwise asked interactively)")
+    p.add_argument("--gemini-key", help="Gemini API key (otherwise asked interactively)")
     p.add_argument("--no-deps", action="store_true", help="Skip pip install")
-    p.add_argument("--no-local", action="store_true", help="Skip install naar ~/.claude/skills/image/")
-    p.add_argument("--no-bundle", action="store_true", help="Skip bouwen van .skill bundel")
+    p.add_argument("--no-local", action="store_true", help="Skip install to ~/.claude/skills/image/")
+    p.add_argument("--no-bundle", action="store_true", help="Skip building the .skill bundle")
     p.add_argument(
         "--bundle-path",
         default="image.skill",
-        help="Pad voor de bundel (default: ./image.skill)",
+        help="Path for the bundle (default: ./image.skill)",
     )
-    p.add_argument("-y", "--yes", action="store_true", help="Accepteer alle bevestigingen")
+    p.add_argument("-y", "--yes", action="store_true", help="Accept all prompts")
     args = p.parse_args()
 
     if args.no_local and args.no_bundle:
-        fail("Niks te doen: zowel --no-local als --no-bundle gezet.")
+        fail("Nothing to do: both --no-local and --no-bundle were set.")
         return 1
 
     print("Image Skill setup")
     print("─" * 60)
-    print("Dit script gaat:")
+    print("This script will:")
     if not args.no_deps:
-        print("  • Python-dependencies installeren (openai, google-genai, pillow)")
-    print("  • Je API-keys vragen (verborgen invoer, niet in shell-history)")
+        print("  • Install Python dependencies (openai, google-genai, pillow)")
+    print("  • Ask for your API keys (hidden input, not in shell history)")
     if not args.no_local:
-        print(f"  • De skill plaatsen in {SKILL_INSTALL_DIR}")
+        print(f"  • Place the skill in {SKILL_INSTALL_DIR}")
     if not args.no_bundle:
-        print(f"  • Een bundel bouwen → {args.bundle_path}")
+        print(f"  • Build a bundle → {args.bundle_path}")
 
-    if not confirm("\n  Doorgaan?", default=True, assume_yes=args.yes):
-        print("Geannuleerd.")
+    if not confirm("\n  Continue?", default=True, assume_yes=args.yes):
+        print("Cancelled.")
         return 0
 
     check_prerequisites()
@@ -253,9 +253,9 @@ def main() -> int:
     if not args.no_deps:
         install_dependencies()
 
-    step("API-keys")
-    print("  Invoer is verborgen. Keys worden niet getoond, niet gelogd, niet in shell-history.")
-    openai_key = args.openai_key or read_key("OpenAI API key (sk-... of sk-proj-...)", ("sk-",))
+    step("API keys")
+    print("  Input is hidden. Keys are not displayed, not logged, not in shell history.")
+    openai_key = args.openai_key or read_key("OpenAI API key (sk-... or sk-proj-...)", ("sk-",))
     gemini_key = args.gemini_key or read_key("Gemini API key (AIza...)", ("AIza",))
 
     generate_py = render_generate_py(openai_key, gemini_key)
@@ -267,28 +267,28 @@ def main() -> int:
     if not args.no_bundle:
         build_bundle(generate_py, bundle_path, args.yes)
 
-    # Slotsamenvatting
+    # Final summary
     print("\n" + "─" * 60)
-    print("Klaar.\n")
+    print("Done.\n")
     if not args.no_local:
-        print(f"  Lokale install : {SKILL_INSTALL_DIR}")
-        print("                   → Claude Code pikt de skill automatisch op")
+        print(f"  Local install : {SKILL_INSTALL_DIR}")
+        print("                  → Claude Code picks up the skill automatically")
     if not args.no_bundle:
-        print(f"  Bundel         : {bundle_path}")
-        print("                   → Importeer in claude.ai of Claude desktop:")
-        print("                     Settings → Skills → Create / Upload")
-        print("                     (extensie .skill of .zip — beide werken)")
+        print(f"  Bundle        : {bundle_path}")
+        print("                  → Import into claude.ai or Claude desktop:")
+        print("                    Settings → Skills → Create / Upload")
+        print("                    (extension .skill or .zip — both work)")
     print()
     print("  ⚠ SECURITY")
-    print("    De bundel bevat je betaalde API-keys. Behandel als wachtwoord:")
-    print("    • niet committen, niet in iCloud/Dropbox/Drive zetten")
-    print("    • niet via mail/Slack zonder reden doorsturen")
-    print("    • iedereen met dit bestand kan API-calls op jouw rekening doen")
+    print("    The bundle contains your paid API keys. Treat it like a password:")
+    print("    • don't commit, don't put in iCloud/Dropbox/Drive")
+    print("    • don't forward via mail/Slack without reason")
+    print("    • anyone with this file can run API calls on your account")
     print()
-    print("  Sandbox-noot (claude.ai / Cowork)")
-    print("    Bij elke nieuwe sessie installeert de sandbox de Python-deps")
-    print("    opnieuw (pip install openai google-genai pillow). Eerste call")
-    print("    duurt daardoor ~10-20s extra. Daarna normaal tempo.")
+    print("  Sandbox note (claude.ai / desktop)")
+    print("    Each new session the sandbox reinstalls the Python deps")
+    print("    (pip install openai google-genai pillow). The first call takes")
+    print("    ~10-20s longer because of this. Normal speed after that.")
     return 0
 
 

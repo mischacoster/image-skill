@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Image Skill — macOS installer (dubbelklikbaar)
+# Image Skill — macOS installer (double-clickable)
 #
-# Niet-technische gebruiker? Dubbelklik op dit bestand in Finder.
-# Terminal opent automatisch en de installer doorloopt:
-#   1. Python-dependencies installeren
-#   2. Je OpenAI- en Gemini-API-keys vragen (verborgen invoer)
-#   3. De skill plaatsen in ~/.claude/skills/image/ (voor Claude Code)
-#   4. Een image.skill bundel bouwen (voor claude.ai / Claude desktop)
+# Non-technical user? Double-click this file in Finder.
+# Terminal opens automatically and the installer walks through:
+#   1. Install Python dependencies
+#   2. Ask for your OpenAI and Gemini API keys (hidden input)
+#   3. Place the skill in ~/.claude/skills/image/ (for Claude Code)
+#   4. Build an image.skill bundle (for claude.ai / Claude desktop)
 #
-# Het Terminal-venster blijft open zodat je de output kunt lezen.
+# The Terminal window stays open so you can read the output.
 # ============================================================================
 
-# Stop bij elke fout zodat we het niet stilletjes verkeerd doen
+# Stop on first error so we don't silently do the wrong thing
 set -e
 
-# cd naar de map waar dit script staat (bij dubbelklik is cwd anders je $HOME)
+# cd to the directory of this script (double-click cwd is otherwise $HOME)
 cd "$(dirname "$0")"
 
-# clear: faalt fail-silent in omgevingen zonder TERM (in echte Terminal werkt het)
+# clear: fail-silent in environments without TERM (works in a real Terminal)
 clear 2>/dev/null || true
 cat <<'BANNER'
 ╭──────────────────────────────────────────────────────────╮
@@ -28,63 +28,63 @@ cat <<'BANNER'
 
 BANNER
 
-# Verwijder de quarantine-flag van dit bestand voor toekomstige runs.
-# (Bij eerste run blokkeert macOS Gatekeeper — die handmatige Open-stap
-#  heb je dan al gedaan; dit voorkomt dat het bij elke run terugkomt.)
+# Remove the quarantine flag from this file for future runs.
+# (On first run macOS Gatekeeper blocks — you handled the manual Open step
+#  then; this prevents the prompt every subsequent run.)
 xattr -d com.apple.quarantine "$0" 2>/dev/null || true
 
-# Python3 check
+# Python 3 check
 if ! command -v python3 >/dev/null 2>&1; then
   cat <<'EOF'
-✗  Python 3 is niet geïnstalleerd.
+✗  Python 3 is not installed.
 
-   Op macOS is de makkelijkste manier de Command Line Tools:
+   On macOS the easiest path is the Command Line Tools:
 
-     1. Open Terminal (Programma's → Hulpprogramma's → Terminal)
-     2. Plak en druk Enter:
+     1. Open Terminal (Applications → Utilities → Terminal)
+     2. Paste and press Enter:
 
         xcode-select --install
 
-     3. Bevestig het pop-up en wacht tot de installatie klaar is.
-     4. Dubbelklik opnieuw op install.command.
+     3. Confirm the popup and wait for the install to finish.
+     4. Double-click install.command again.
 
-   Alternatief: download Python via https://www.python.org/downloads/
+   Alternative: download Python from https://www.python.org/downloads/
 
 EOF
-  echo "Druk op Enter om dit venster te sluiten."
+  echo "Press Enter to close this window."
   read -r _
   exit 1
 fi
 
-# Check of setup.py er naast staat (zou altijd moeten, maar zekerheid is goedkoop)
+# Sanity check that setup.py is next to us (should always be, but cheap to verify)
 if [[ ! -f "setup.py" ]]; then
   cat <<EOF
-✗  setup.py niet gevonden naast install.command.
+✗  setup.py not found next to install.command.
 
-   Dit bestand hoort in dezelfde map te staan als setup.py, SKILL.md en
-   generate.example.py. Heb je de ZIP wel volledig uitgepakt?
+   This file should sit in the same directory as setup.py, SKILL.md and
+   generate.example.py. Did you unzip the archive completely?
 
-   Huidige map: $(pwd)
+   Current directory: $(pwd)
 
 EOF
-  echo "Druk op Enter om dit venster te sluiten."
+  echo "Press Enter to close this window."
   read -r _
   exit 1
 fi
 
-# Forward alle command-line argumenten door naar setup.py (voor power-users
-# die install.command "$ ./install.command --no-deps" kunnen aanroepen)
+# Forward all command-line arguments to setup.py (so power users can do
+# "./install.command --no-deps" or similar)
 python3 setup.py "$@"
 status=$?
 
 echo
 echo "──────────────────────────────────────────────────────────"
 if [[ $status -eq 0 ]]; then
-  echo "✓ Installer afgerond."
+  echo "✓ Installer finished."
 else
-  echo "✗ Installer beëindigd met fout (exit code $status)."
+  echo "✗ Installer exited with error (exit code $status)."
 fi
 echo
-echo "Druk op Enter om dit venster te sluiten."
+echo "Press Enter to close this window."
 read -r _
 exit $status

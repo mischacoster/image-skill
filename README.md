@@ -1,68 +1,68 @@
 # Image Skill — Dual-Provider Image Generator
 
-Eén Claude Code skill, twee image-providers: **OpenAI GPT-Image-2** en
-**Google Gemini Nano Banana (Pro)**. Claude kiest zelf de juiste provider en
-modus op basis van de briefing — de skill levert de bouwstenen, Claude
-orchestreert.
+One Claude Code skill, two image providers: **OpenAI GPT-Image-2** and
+**Google Gemini Nano Banana (Pro)**. Claude picks the right provider and
+mode based on the briefing — the skill provides the building blocks,
+Claude orchestrates.
 
-> Bedoeld als drop-in skill voor Claude Code / claude.ai. Werkt ook als
-> standalone CLI-script.
-
----
-
-## ⚠️ API-keys eerst lezen
-
-Dit script praat met betaalde API's (OpenAI + Google Gemini). De keys zijn
-**niet** in deze repo opgenomen.
-
-- **`generate.py`** = het werkende script, mét jouw keys. Staat in
-  [.gitignore](.gitignore) en wordt **nooit** gecommit.
-- **`generate.example.py`** = exact hetzelfde script, maar met lege keys. Dit
-  is wat je in de repo ziet.
-
-Bij installatie kopieer je het template naar `generate.py` en vul je daar je
-eigen keys in. Zo kan een key nooit per ongeluk op GitHub belanden.
-
-Waarom de keys *in het bestand* mogen (en niet alleen als environment
-variable): de skill draait ook via **claude.ai / Cowork**, en daar zijn geen
-shell environment variables beschikbaar. Het script ondersteunt beide: een
-ingevulde key in het bestand óf de env vars `OPENAI_API_KEY` /
-`GEMINI_API_KEY` (de env var wordt gebruikt als de key in het bestand leeg is).
+> Designed as a drop-in skill for Claude Code / claude.ai. Also works as
+> a standalone CLI script.
 
 ---
 
-## Vereisten
+## ⚠️ Read this about API keys first
+
+This script talks to paid APIs (OpenAI + Google Gemini). The keys are
+**not** included in this repo.
+
+- **`generate.py`** = the working script, with your keys. Listed in
+  [.gitignore](.gitignore) and **never** committed.
+- **`generate.example.py`** = the exact same script, but with empty keys.
+  This is what you see in the repo.
+
+During installation you copy the template to `generate.py` and put your
+keys there. That way a key can never accidentally end up on GitHub.
+
+Why keys go *in the file* (and not only as environment variables): the
+skill also runs through **claude.ai / Claude desktop**, where no shell
+environment variables are available. The script supports both: a key
+filled in inside the file, or the env vars `OPENAI_API_KEY` /
+`GEMINI_API_KEY` (the env var is used when the in-file key is empty).
+
+---
+
+## Requirements
 
 - Python 3.9+
-- Een OpenAI API-key (met toegang tot GPT-Image-2)
-- Een Google Gemini API-key (met toegang tot Nano Banana / NB2 / Pro)
-- Python-packages: `openai`, `google-genai`, `pillow`
+- An OpenAI API key (with GPT-Image-2 access)
+- A Google Gemini API key (with Nano Banana / NB2 / Pro access)
+- Python packages: `openai`, `google-genai`, `pillow`
 
 ---
 
-## Automatische installatie (aanbevolen)
+## Automated installation (recommended)
 
-De automatische route doet alles voor je: dependencies installeren, je keys
-veilig uitvragen, de skill plaatsen in `~/.claude/skills/image/` (voor Claude
-Code) en een `image.skill` bundel bouwen (voor import in claude.ai / Claude
-desktop). Je hoeft niets te kopiëren, hernoemen of regelnummers op te zoeken.
+The automated route does everything for you: installs dependencies, asks
+for your keys safely, places the skill in `~/.claude/skills/image/` (for
+Claude Code) and builds an `image.skill` bundle (for import into
+claude.ai / Claude desktop). You don't need to copy, rename, or look up
+line numbers.
 
-Kies één van de twee onderstaande routes — beide leiden naar hetzelfde
-resultaat.
+Pick one of the two routes below — both lead to the same result.
 
-### Route A — macOS dubbelklik (geen terminal nodig)
+### Route A — macOS double-click (no terminal needed)
 
-Krijg je deze repo als ZIP? Pak hem uit en **dubbelklik op `install.command`**
-in Finder. Terminal opent automatisch en doorloopt de installer.
+Got this repo as a ZIP? Unzip it and **double-click `install.command`**
+in Finder. Terminal opens automatically and runs the installer.
 
-> **Eerste keer:** macOS Gatekeeper kan zeggen *"cannot be opened because
-> it is from an unidentified developer"*. Klik dan met de **rechtermuisknop**
-> op `install.command` → **Open** → **Open**. Dat hoeft maar één keer.
+> **First time:** macOS Gatekeeper may say *"cannot be opened because
+> it is from an unidentified developer"*. **Right-click** on
+> `install.command` → **Open** → **Open**. You only need to do this once.
 >
-> **Lukt dubbelklikken niet?** Open Terminal, sleep `install.command` erin,
-> druk op Enter.
+> **Double-click doesn't work?** Open Terminal, drag `install.command`
+> into it, press Enter.
 
-### Route B — Terminal (alle platforms)
+### Route B — Terminal (all platforms)
 
 ```bash
 git clone https://github.com/mischacoster/image-skill.git
@@ -70,46 +70,46 @@ cd image-skill
 ./setup.py
 ```
 
-### Wat doet de installer?
+### What the installer does
 
-Beide routes draaien `setup.py` en doorlopen achter de schermen:
+Both routes run `setup.py` and walk through these steps:
 
-1. **Dependencies** — installeert `openai`, `google-genai`, `pillow` via pip
-2. **Keys** — vraagt je OpenAI- en Gemini-key (verborgen invoer, niet in shell-history)
-3. **Lokale install** — schrijft `~/.claude/skills/image/{SKILL.md, generate.py}` met permissies `600` (Claude Code pikt dit automatisch op)
-4. **Bundel** — bouwt `image.skill` in de huidige map (mode `600`) voor import in claude.ai / desktop
+1. **Dependencies** — installs `openai`, `google-genai`, `pillow` via pip
+2. **Keys** — asks for your OpenAI and Gemini key (hidden input, not in shell history)
+3. **Local install** — writes `~/.claude/skills/image/{SKILL.md, generate.py}` with mode `600` (Claude Code picks it up automatically)
+4. **Bundle** — builds `image.skill` in the current directory (mode `600`) for import into claude.ai / desktop
 
-### Handige flags
+### Useful flags
 
 ```bash
-./setup.py --no-deps          # skip pip install (als deps er al staan)
-./setup.py --no-local         # alleen bundel, geen lokale install
-./setup.py --no-bundle        # alleen lokale install, geen bundel
+./setup.py --no-deps          # skip pip install (if deps are already there)
+./setup.py --no-local         # bundle only, no local install
+./setup.py --no-bundle        # local install only, no bundle
 ./setup.py --bundle-path ~/Desktop/image.skill
-./setup.py --yes              # accepteer alle bevestigingen
+./setup.py --yes              # accept all prompts
 ./setup.py --help
 ```
 
-> **⚠ Security — `image.skill` bevat je API-keys.**
-> Behandel het als een wachtwoord: niet committen, niet in iCloud/Dropbox,
-> niet zonder reden doorsturen. Iedereen met dit bestand kan betaalde
-> API-calls op jouw rekening doen. Het script schrijft mode `600` zodat
-> alleen jij het kunt lezen.
+> **⚠ Security — `image.skill` contains your API keys.**
+> Treat it like a password: don't commit it, don't put it in
+> iCloud/Dropbox, don't share it without reason. Anyone with this file
+> can run paid API calls on your account. The script writes mode `600`
+> so only you can read it.
 
-### Importeren in claude.ai of Claude desktop
+### Importing into claude.ai or Claude desktop
 
-1. Open *Settings → Skills* (of *Capabilities → Skills*).
-2. Kies *Create skill* / *Upload* en selecteer `image.skill`.
-3. Eerste call in een nieuwe sessie: de sandbox installeert automatisch de
-   Python-deps (~10–20s overhead). Daarna draait het normaal.
+1. Open *Settings → Skills* (or *Capabilities → Skills*).
+2. Choose *Create skill* / *Upload* and select `image.skill`.
+3. First call in a new session: the sandbox automatically installs the
+   Python deps (~10–20s overhead). After that it runs at normal speed.
 
 ---
 
-## Handmatige installatie
+## Manual installation
 
-> Alleen nodig als je het setup-script niet wilt gebruiken. De automatische
-> route hierboven doet alles wat hier handmatig moet — kies dus één van
-> beide, niet beide.
+> Only needed if you don't want to use the setup script. The automated
+> route above does everything that is done manually here — pick one or
+> the other, not both.
 
 ```bash
 git clone https://github.com/mischacoster/image-skill.git ~/.claude/skills/image
@@ -118,198 +118,199 @@ pip3 install openai google-genai pillow
 cp generate.example.py generate.py
 ```
 
-Open `generate.py` en vul bovenin (regels 75–76) je keys in:
+Open `generate.py` and fill in your keys at the top (lines 75–76):
 
 ```python
-OPENAI_API_KEY = "sk-proj-..."   # jouw OpenAI key
-GEMINI_API_KEY = "AIza..."       # jouw Gemini key
+OPENAI_API_KEY = "sk-proj-..."   # your OpenAI key
+GEMINI_API_KEY = "AIza..."       # your Gemini key
 ```
 
-Of laat ze leeg en zet in plaats daarvan environment variables (werkt alleen
-in lokaal Claude Code, niet in claude.ai/desktop — daar móét de key in het
-bestand staan):
+Or leave them empty and use environment variables instead (only works in
+local Claude Code — not in claude.ai/desktop, where the key *must* be in
+the file):
 
 ```bash
 export OPENAI_API_KEY="sk-proj-..."
 export GEMINI_API_KEY="AIza..."
 ```
 
-Standalone draaien werkt ook:
+Standalone use works too:
 
 ```bash
-python3 ~/.claude/skills/image/generate.py "een minimalistisch brein-logo" --hq --gpt
+python3 ~/.claude/skills/image/generate.py "a minimalist brain logo" --hq --gpt
 ```
 
 ---
 
-## Gebruik in het kort
+## Quick usage
 
-Claude detecteert automatisch wat je nodig hebt en kiest provider + modus.
-Je kunt ook expliciet sturen met de switches hieronder.
+Claude detects what you need and picks provider + mode. You can also
+steer explicitly with the switches below.
 
-| Modus | Trigger | Wat het doet |
+| Mode | Trigger | What it does |
 |---|---|---|
-| **Concept** (`--concept`) | "verken", "ideeën", "varianten", vage briefing | 4 diverse concepten, dual (2 GPT + 2 Gemini), snel/low-res |
-| **HQ** (`--hq`) | "final", "definitief", "print", "hoge kwaliteit" | 1 hi-res asset |
-| **Web** (`--web`) | web-asset | 2 varianten, medium |
-| **Social** (`--social`) | social media | 4 varianten, medium |
-| **Text** (`--text`) | infographic, labels, headline in beeld | modifier, forceert Gemini Pro (combineert met elk preset) |
-| **Reference** (`--reference IMG`) | "plaats dit product in…", "deze persoon in scene" | genereert op basis van 1+ referentiebeelden |
-| **Edit** (`--edit IMG`) | bestaande afbeelding aanpassen | edit een meegestuurde afbeelding |
-| **Session** (`--session NAME` / `--continue`) | "borduur voort op…", iteraties | multi-turn, behoudt context tussen calls |
+| **Concept** (`--concept`) | "explore", "ideas", "variants", vague briefing | 4 diverse concepts, dual (2 GPT + 2 Gemini), fast/low-res |
+| **HQ** (`--hq`) | "final", "definitive", "print", "high quality" | 1 hi-res asset |
+| **Web** (`--web`) | web asset | 2 variants, medium |
+| **Social** (`--social`) | social media | 4 variants, medium |
+| **Text** (`--text`) | infographic, labels, headline in image | modifier, forces Gemini Pro (combines with any preset) |
+| **Reference** (`--reference IMG`) | "place this product in…", "this person in scene" | generates based on 1+ reference images |
+| **Edit** (`--edit IMG`) | modify an existing image | edits a provided image |
+| **Session** (`--session NAME` / `--continue`) | "build on…", iterations | multi-turn, preserves context across calls |
 
 ---
 
-## Provider kiezen
+## Choosing a provider
 
-Default voor `--concept`: dual mode (2 GPT + 2 Gemini). Voor de rest geldt:
+Default for `--concept`: dual mode (2 GPT + 2 Gemini). For everything
+else:
 
-| Briefing-signaal | Provider | Reden |
+| Briefing signal | Provider | Reason |
 |---|---|---|
-| Infographic, poster met tekst, UI mockup | **GPT** | Text rendering, spatial logic, instructie-trouw |
-| Hyperrealistisch portret, productfotografie | **Gemini Pro** | Natuurlijke huid, "real camera" |
-| Style transfer (pop-art, watercolor, vintage) | **Gemini Pro** | Sterkere style transfer |
-| Cinematic sfeer, mood, lighting (geen tekst) | **Gemini Pro** | Atmosfeer en lichtval |
-| Strikt brand-rule volgen (exacte kleur/font) | **GPT** | Hoger op instructie-trouw |
-| Foto's combineren tot één scene | **Gemini Pro** | Mature multi-image fusion |
-| Bestaande foto editen, mensen weghalen | **GPT** | Stabiele iteratieve edits |
-| Herkenbare echte persoon in scene | **GPT** | Face fidelity / identity preservation |
-| Publiek figuur (politicus, CEO) | **GPT** | Gemini blokt vaak met policy-melding |
-| Snelheid + veel iteraties | **GPT** | ~3 sec vs 10–15 sec |
-| Non-Latin tekst (Kanji, Cyrillisch, Arabisch) | **GPT** | Multilingual text fidelity |
-| Editorial layout, complex grid | **GPT** | Layout-kennis sterker |
+| Infographic, poster with text, UI mockup | **GPT** | Text rendering, spatial logic, instruction-following |
+| Hyperrealistic portrait, product photography | **Gemini Pro** | Natural skin, "real camera" |
+| Style transfer (pop-art, watercolor, vintage) | **Gemini Pro** | Stronger style transfer |
+| Cinematic atmosphere, mood, lighting (no text) | **Gemini Pro** | Atmosphere and lighting |
+| Strict brand rules (exact color/font) | **GPT** | Higher on instruction-following |
+| Combining photos into one scene | **Gemini Pro** | Mature multi-image fusion |
+| Edit existing photo, remove people | **GPT** | Stable iterative edits |
+| Recognizable real person in scene | **GPT** | Face fidelity / identity preservation |
+| Public figure (politician, CEO) | **GPT** | Gemini often blocks with policy message |
+| Speed + many iterations | **GPT** | ~3 sec vs 10–15 sec |
+| Non-Latin text (Kanji, Cyrillic, Arabic) | **GPT** | Multilingual text fidelity |
+| Editorial layout, complex grid | **GPT** | Layout knowledge stronger |
 
 ---
 
-## Alle switches
+## All switches
 
-**Presets** (kies max 1): `--concept` · `--hq` · `--web` · `--social`
+**Presets** (pick max 1): `--concept` · `--hq` · `--web` · `--social`
 
-**Modifier** (combineerbaar): `--text` (forceert Gemini Pro)
+**Modifier** (combinable): `--text` (forces Gemini Pro)
 
-**Provider** (kies max 1): `--gpt` · `--gemini`
+**Provider** (pick max 1): `--gpt` · `--gemini`
 
-**Generiek:**
+**Generic:**
 - `--size square|landscape|portrait|auto`
-- `--aspect-ratio` (Gemini-specifiek)
+- `--aspect-ratio` (Gemini-specific)
 - `--quality low|medium|high`
 - `--variants N` / `-n N`
 - `--format png|jpeg|webp` (GPT)
 
-**Diverse prompts:** `--prompts "p1|p2|p3|p4"` (4 echt verschillende prompts)
+**Diverse prompts:** `--prompts "p1|p2|p3|p4"` (4 genuinely different prompts)
 
 **Gemini:** `--resolution 512|1K|2K|4K` · `--gemini-model flash|nb2|pro|auto` · `--grounding`
 
 **GPT:** `--background auto|opaque` · `--moderation auto|low` · `--compression 0-100`
 
-**Reference / edit** (single-provider): `--reference IMG` (meerdere mogelijk) · `--edit IMG` · `--edit-latest [DIR]` · `--mask IMG`
+**Reference / edit** (single-provider): `--reference IMG` (multiple allowed) · `--edit IMG` · `--edit-latest [DIR]` · `--mask IMG`
 
 **Sessions** (single-provider): `--session NAME` · `--continue` · `--reset-session NAME` · `--list-sessions`
 
 **Workflow:** `--skipquestions`
 
-### Quality-mapping (Gemini)
+### Quality mapping (Gemini)
 
-| Quality | Resolutie | Model | Noot |
+| Quality | Resolution | Model | Note |
 |---|---|---|---|
-| low | 512 | NB2 | Pro kan geen 512 |
+| low | 512 | NB2 | Pro can't do 512 |
 | medium | 1K | Pro | Default Pro |
 | high | 4K | Pro | Default Pro |
 
-Met `--text` wordt low automatisch 1K + Pro.
+With `--text`, low automatically becomes 1K + Pro.
 
 ---
 
-## Voorbeelden
+## Examples
 
 ```bash
-# Dual concept met diverse prompts
-python3 ~/.claude/skills/image/generate.py "illustratie voor Status Quo Bias column" \
+# Dual concept with diverse prompts
+python3 ~/.claude/skills/image/generate.py "illustration for a Status Quo Bias column" \
   --concept --prompts "editorial vector, person frozen at fork in road|metaphorical photorealistic, anchor pulling someone down|3D isometric comfort zone|abstract minimalist with weights"
 
-# Hi-quality logo met GPT (sterke instructie-trouw)
-python3 ~/.claude/skills/image/generate.py "minimalistisch logo, geometric brain icon" --hq --gpt
+# Hi-quality logo with GPT (strong instruction-following)
+python3 ~/.claude/skills/image/generate.py "minimalist logo, geometric brain icon" --hq --gpt
 
-# Fotorealistische lifestyle scene met Gemini Pro
-python3 ~/.claude/skills/image/generate.py "iemand werkt thuis aan de keukentafel, ochtendlicht" --hq --gemini
+# Photorealistic lifestyle scene with Gemini Pro
+python3 ~/.claude/skills/image/generate.py "someone working from home at the kitchen table, morning light" --hq --gemini
 
-# Infographic met tekst (GPT vanwege text rendering)
-python3 ~/.claude/skills/image/generate.py "infographic over confirmation bias met labels en titel" --text --gpt --hq
+# Infographic with text (GPT for text rendering)
+python3 ~/.claude/skills/image/generate.py "infographic about confirmation bias with labels and title" --text --gpt --hq
 
-# Product in nieuwe setting
-python3 ~/.claude/skills/image/generate.py "plaats deze fles op natuursteen aanrecht, ochtendlicht" --reference fles.jpg --gemini --quality high
+# Product in a new setting
+python3 ~/.claude/skills/image/generate.py "place this bottle on a natural stone counter, morning light" --reference bottle.jpg --gemini --quality high
 
-# Herkenbare persoon in scene (GPT vanwege face fidelity)
-python3 ~/.claude/skills/image/generate.py "deze persoon als spreker op een TEDx podium" --reference foto.jpg --gpt --hq
+# Recognizable person in scene (GPT for face fidelity)
+python3 ~/.claude/skills/image/generate.py "this person as a speaker at a TEDx stage" --reference photo.jpg --gpt --hq
 
-# Mensen weghalen uit foto
-python3 ~/.claude/skills/image/generate.py "verwijder alle andere personen rond de centrale persoon" --edit foto.jpg --gpt --skipquestions
+# Remove people from a photo
+python3 ~/.claude/skills/image/generate.py "remove all other people around the central person" --edit photo.jpg --gpt --skipquestions
 
-# Banner met aspect ratio
-python3 ~/.claude/skills/image/generate.py "LinkedIn banner over biases" --gemini --aspect-ratio 21:9 --quality high
+# Banner with aspect ratio
+python3 ~/.claude/skills/image/generate.py "LinkedIn banner about cognitive biases" --gemini --aspect-ratio 21:9 --quality high
 
-# Iteratieve sessie
-python3 ~/.claude/skills/image/generate.py "futuristisch dashboard, dark mode" --session dash --gemini --quality medium
-python3 ~/.claude/skills/image/generate.py "voeg grafiek rechts toe" --continue
-python3 ~/.claude/skills/image/generate.py "warmer kleurpalet" --continue
+# Iterative session
+python3 ~/.claude/skills/image/generate.py "futuristic dashboard, dark mode" --session dash --gemini --quality medium
+python3 ~/.claude/skills/image/generate.py "add a chart on the right" --continue
+python3 ~/.claude/skills/image/generate.py "warmer color palette" --continue
 ```
 
 ---
 
 ## Output
 
-Bestanden komen in de huidige werkmap:
+Files land in the current working directory:
 
-- `2026-05-16_141523_jouw-prompt-slug_gpt_v1.png`
-- `2026-05-16_141523_jouw-prompt-slug_gemini_v1.png`
-- `2026-05-16_141523_jouw-prompt-slug_gemini_dash.png` (session-tagged)
-- Een `.txt` sidecar per afbeelding met de gebruikte prompt + settings
+- `2026-05-16_141523_your-prompt-slug_gpt_v1.png`
+- `2026-05-16_141523_your-prompt-slug_gemini_v1.png`
+- `2026-05-16_141523_your-prompt-slug_gemini_dash.png` (session-tagged)
+- A `.txt` sidecar per image with the prompt + settings used
 
-Sessie-state staat per projectmap in `./.image-sessions/{name}.json`.
+Session state lives per project folder in `./.image-sessions/{name}.json`.
 
-> Gegenereerde afbeeldingen, sidecars en sessie-state staan in
-> [.gitignore](.gitignore) en worden bewust niet meegecommit.
+> Generated images, sidecars and session state are listed in
+> [.gitignore](.gitignore) and are deliberately not committed.
 
 ---
 
-## Provider-eigenschappen
+## Provider properties
 
-| Eigenschap | GPT-Image-2 | Gemini Nano Banana |
+| Property | GPT-Image-2 | Gemini Nano Banana |
 |---|---|---|
-| Beste voor | Tekst, layout, identity preservation, iteratieve edits | Fotorealisme, atmosfeer, style transfer, multi-reference |
-| Tekst in beeld | Excellent (incl. non-Latin) | Goed, minder dense |
-| Public figures | Toegestaan | Vaak geblokt |
-| Snelheid | ~3 sec | 10–15 sec |
-| Max resolutie | ~1536×1024 | 4K (NB2 en Pro) |
-| Native chat sessions | Nee (edit-chain) | Ja (thought signatures) |
-| Reference images | Ja (image.edit) | Ja (tot 14 voor Pro) |
-| Edit met mask | Ja | Nee (semantic inpainting via prompt) |
-| Grounding op real-time data | Nee | Ja (Google Search) |
-| Watermerk | Nee | SynthID (onzichtbaar) |
+| Best for | Text, layout, identity preservation, iterative edits | Photorealism, atmosphere, style transfer, multi-reference |
+| Text in image | Excellent (incl. non-Latin) | Good, less dense |
+| Public figures | Allowed | Often blocked |
+| Speed | ~3 sec | 10–15 sec |
+| Max resolution | ~1536×1024 | 4K (NB2 and Pro) |
+| Native chat sessions | No (edit-chain) | Yes (thought signatures) |
+| Reference images | Yes (image.edit) | Yes (up to 14 for Pro) |
+| Edit with mask | Yes | No (semantic inpainting via prompt) |
+| Grounding on real-time data | No | Yes (Google Search) |
+| Watermark | No | SynthID (invisible) |
 
 ---
 
 ## Troubleshooting
 
-| Probleem | Oplossing |
+| Problem | Solution |
 |---|---|
-| `No OpenAI API key` / `No Gemini API key` | Key niet ingevuld in `generate.py` én geen env var gezet. Vul één van beide. |
+| `No OpenAI API key` / `No Gemini API key` | Key not filled in `generate.py` and no env var set. Do one of the two. |
 | `ModuleNotFoundError: openai` | `pip3 install openai google-genai pillow` |
-| Claude ziet de skill niet | Repo moet in `~/.claude/skills/image/` staan en `SKILL.md` bevatten |
-| Gemini weigert een bekende persoon | Gebruik `--gpt` (Gemini blokt publieke figuren) |
-| `generate.py` verschijnt in `git status` | Dat hoort niet — controleer dat [.gitignore](.gitignore) de regel `generate.py` bevat |
+| Claude doesn't see the skill | Repo must live in `~/.claude/skills/image/` and contain `SKILL.md` |
+| Gemini refuses a known person | Use `--gpt` (Gemini blocks public figures) |
+| `generate.py` shows up in `git status` | That shouldn't happen — check that [.gitignore](.gitignore) contains the line `generate.py` |
 
 ---
 
-## Bestanden in deze repo
+## Files in this repo
 
-| Bestand | Rol |
+| File | Role |
 |---|---|
-| `SKILL.md` | Skill-instructies voor Claude (beslis-flow, provider-keuze) |
-| `generate.example.py` | Het script zónder keys — kopieer naar `generate.py` |
-| `generate.py` | Jouw werkende script mét keys — **niet** in git (`.gitignore`) |
-| `setup.py` | Setup-script: deps, keys, lokale install + bundel-build |
-| `install.command` | macOS dubbelklik-launcher voor `setup.py` (non-tech) |
-| `image.skill` | Gegenereerde bundel mét keys — **niet** in git (`.gitignore`) |
-| `README.md` | Dit bestand |
-| `.gitignore` | Houdt keys, output, bundel en sessie-state buiten git |
+| `SKILL.md` | Skill instructions for Claude (decision flow, provider choice) |
+| `generate.example.py` | The script without keys — copy to `generate.py` |
+| `generate.py` | Your working script with keys — **not** in git (`.gitignore`) |
+| `setup.py` | Setup script: deps, keys, local install + bundle build |
+| `install.command` | macOS double-click launcher for `setup.py` (non-tech) |
+| `image.skill` | Generated bundle with keys — **not** in git (`.gitignore`) |
+| `README.md` | This file |
+| `.gitignore` | Keeps keys, output, bundle and session state out of git |

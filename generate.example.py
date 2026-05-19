@@ -6,55 +6,55 @@ Runs OpenAI and Gemini in parallel where applicable and writes all results
 to the current working directory.
 
 Quickstart:
-  generate.py "een logo voor Grey Matters" --concept
-  generate.py "infographic over confirmation bias" --text --quality high --gemini
-  generate.py "plaats deze fles op marmer met natuurlijk licht" --reference fles.jpg --gemini --quality high
+  generate.py "logo for a creative studio" --concept
+  generate.py "infographic about confirmation bias" --text --quality high --gemini
+  generate.py "place this bottle on marble with natural light" --reference bottle.jpg --gemini --quality high
   generate.py "now make it night time" --session glass-city --gemini --continue
 
 Presets:
   --concept   dual-provider lowres concepting (2 GPT + 2 Gemini)
-  --hq        single hi-quality asset (kies provider via --gpt of --gemini)
+  --hq        single hi-quality asset (pick provider via --gpt or --gemini)
   --web       web asset, medium quality, 2 variants
   --social    portrait social media asset
 
-Modifiers (kunnen met presets combineren):
-  --text      Force Gemini Pro (beste tekst-rendering, ook bij --concept)
+Modifiers (combinable with presets):
+  --text      Force Gemini Pro (best text rendering, also with --concept)
 
 Provider selection (mutually exclusive):
   --gpt        OpenAI only
   --gemini     Gemini only
-  (none)       dual bij --concept, anders GPT
+  (none)       dual for --concept, otherwise GPT
 
 Generic switches:
   --size square|landscape|portrait|auto
   --aspect-ratio 1:1|16:9|9:16|... (Gemini)
   --quality low|medium|high
   --resolution 512|1K|2K|4K        (Gemini only)
-  --variants N                     (totaal aantal images, split in dual mode)
+  --variants N                     (total number of images, split in dual mode)
   --format png|jpeg|webp           (GPT only)
   --grounding                      (Gemini Google Search grounding)
   --gemini-model flash|nb2|pro|auto
 
-Diverse varianten (cruciaal voor goede concepting):
-  --prompts "p1|p2|p3|p4"          Pipe-separated lijst van unieke prompts.
-                                   Vervangt de positional prompt, set --variants
-                                   gelijk aan aantal entries. Bij dual worden
-                                   prompts afwisselend over providers verdeeld.
+Diverse variants (crucial for good concepting):
+  --prompts "p1|p2|p3|p4"          Pipe-separated list of unique prompts.
+                                   Replaces the positional prompt, sets --variants
+                                   equal to the number of entries. In dual mode
+                                   prompts are alternated across providers.
 
 Reference and edit modes (single-provider only):
-  --reference IMAGE        Reference image voor composition (kan meerdere keren)
-  --edit IMAGE             Pad naar bestaande image om te bewerken
-  --edit-latest [DIR]      Auto-pak nieuwste image (default ~/Desktop, ~/Downloads)
-  --mask IMAGE             Optionele mask (GPT only)
+  --reference IMAGE        Reference image for composition (can be specified multiple times)
+  --edit IMAGE             Path to an existing image to edit
+  --edit-latest [DIR]      Auto-pick latest image (default ~/Desktop, ~/Downloads)
+  --mask IMAGE             Optional mask (GPT only)
 
 Multi-turn sessions (single-provider only):
-  --session NAME           Start of resume een named session
-  --continue               Gebruik laatst gebruikte session in deze folder
-  --reset-session NAME     Verwijder een opgeslagen sessie
-  --list-sessions          Toon alle sessies in deze folder
+  --session NAME           Start or resume a named session
+  --continue               Use the last-used session in this folder
+  --reset-session NAME     Remove a saved session
+  --list-sessions          Show all sessions in this folder
 
 Workflow:
-  --skipquestions          Geen vragen, defaults gebruiken
+  --skipquestions          No questions, use defaults
 """
 
 import argparse
@@ -72,13 +72,13 @@ from pathlib import Path
 # ============================================================================
 # CONFIG: paste your API keys here, OR leave empty to use env vars
 # ============================================================================
-# Vul hieronder je eigen sleutels in (tussen de quotes), OF laat ze leeg en
-# zet de environment variables OPENAI_API_KEY / GEMINI_API_KEY.
-# LET OP: dit is het template-bestand. Kopieer het naar generate.py
-# (cp generate.example.py generate.py) en vul daar je keys in. generate.py
-# staat in .gitignore zodat je keys nooit per ongeluk op GitHub belanden.
-OPENAI_API_KEY = ""  # bv. "sk-proj-..." — of laat leeg en zet env var OPENAI_API_KEY
-GEMINI_API_KEY = ""  # bv. "AIza..."     — of laat leeg en zet env var GEMINI_API_KEY
+# Fill in your own keys below (between the quotes), OR leave them empty and
+# set the environment variables OPENAI_API_KEY / GEMINI_API_KEY.
+# NOTE: this is the template file. Copy it to generate.py
+# (cp generate.example.py generate.py) and put your keys there. generate.py
+# is listed in .gitignore so your keys never accidentally end up on GitHub.
+OPENAI_API_KEY = ""  # e.g. "sk-proj-..." — or leave empty and set env var OPENAI_API_KEY
+GEMINI_API_KEY = ""  # e.g. "AIza..."     — or leave empty and set env var GEMINI_API_KEY
 
 
 # ============================================================================
@@ -150,7 +150,7 @@ PRESETS = {
         "format": "png",
         "variants": 1,
         "default_providers": None,
-        "description": "single hi-quality asset, kies provider met --gpt of --gemini",
+        "description": "single hi-quality asset, pick provider with --gpt or --gemini",
     },
     "web": {
         "size": "landscape",

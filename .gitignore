@@ -1,19 +1,19 @@
 # ============================================================================
-# API KEYS — NOOIT committen
+# API KEYS — never commit
 # ============================================================================
-# generate.py bevat de live API keys (regels 75-76). De skill heeft die keys
-# IN het bestand nodig om ook via claude.ai / Cowork te werken (daar zijn geen
-# environment variables beschikbaar). Daarom wordt het werkende script NOOIT
-# getrackt. De repo bevat alleen generate.example.py zonder keys.
+# generate.py contains the live API keys (lines 75-76). The skill needs those
+# keys IN the file to work via claude.ai / Claude desktop (no environment
+# variables are available there). That's why the working script is NEVER
+# tracked. The repo only contains generate.example.py without keys.
 generate.py
 
 # macOS
 .DS_Store
 
-# remember-skill sessiebuffer (lokale state, geen onderdeel van de skill)
+# remember-skill session buffer (local state, not part of the skill)
 .remember/
 
-# Multi-turn sessie-state (runtime, per project-folder)
+# Multi-turn session state (runtime, per project folder)
 .image-sessions/
 
 # Python
@@ -23,13 +23,13 @@ __pycache__/
 .venv/
 venv/
 
-# Gegenereerde output (timestamped images + .txt sidecars met prompts)
+# Generated output (timestamped images + .txt sidecars with prompts)
 *.png
 *.jpg
 *.jpeg
 *.webp
 [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*.txt
 
-# Setup-script output: bundel bevat API-keys, NOOIT committen
+# Setup-script output: bundle contains API keys, NEVER commit
 *.skill
 image.zip
