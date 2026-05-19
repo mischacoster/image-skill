@@ -1,0 +1,31 @@
+# ============================================================================
+# API KEYS — NOOIT committen
+# ============================================================================
+# generate.py bevat de live API keys (regels 75-76). De skill heeft die keys
+# IN het bestand nodig om ook via claude.ai / Cowork te werken (daar zijn geen
+# environment variables beschikbaar). Daarom wordt het werkende script NOOIT
+# getrackt. De repo bevat alleen generate.example.py zonder keys.
+generate.py
+
+# macOS
+.DS_Store
+
+# remember-skill sessiebuffer (lokale state, geen onderdeel van de skill)
+.remember/
+
+# Multi-turn sessie-state (runtime, per project-folder)
+.image-sessions/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Gegenereerde output (timestamped images + .txt sidecars met prompts)
+*.png
+*.jpg
+*.jpeg
+*.webp
+[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*.txt
