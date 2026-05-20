@@ -152,13 +152,19 @@ steer explicitly with the switches below.
 | Mode | Trigger | What it does |
 |---|---|---|
 | **Concept** (`--concept`) | "explore", "ideas", "variants", vague briefing | 4 diverse concepts, dual (2 GPT + 2 Gemini), fast/low-res |
-| **HQ** (`--hq`) | "final", "definitive", "print", "high quality" | 1 hi-res asset |
+| **HQ** (`--hq`) | explicit "final", "for production", "in HQ", "in hires" | 1 hi-res asset — Claude only triggers HQ when you ask for it |
 | **Web** (`--web`) | web asset | 2 variants, medium |
 | **Social** (`--social`) | social media | 4 variants, medium |
 | **Text** (`--text`) | infographic, labels, headline in image | modifier, forces Gemini Pro (combines with any preset) |
 | **Reference** (`--reference IMG`) | "place this product in…", "this person in scene" | generates based on 1+ reference images |
 | **Edit** (`--edit IMG`) | modify an existing image | edits a provided image |
 | **Session** (`--session NAME` / `--continue`) | "build on…", iterations | multi-turn, preserves context across calls |
+| **Analyze** (`--analyze IMG`) | "describe this", "what style is this", save a look | image → structured JSON (subject, style, composition, palette, lighting, mood). Pair with `--save-style NAME` to save as reusable fingerprint. |
+| **Style fingerprint** (`--style NAME`) | "generate in the style of brand-look" | injects a saved style preamble into the prompt before generation |
+
+> **Cost discipline:** the skill defaults to **medium quality** for iteration.
+> Only `--concept` (low) and explicit `--hq` (high) deviate. Reference, edit,
+> merge and session calls stay at medium until you ask for the final HQ version.
 
 ---
 
@@ -203,11 +209,17 @@ else:
 
 **Gemini:** `--resolution 512|1K|2K|4K` · `--gemini-model flash|nb2|pro|auto` · `--grounding`
 
-**GPT:** `--background auto|opaque` · `--moderation auto|low` · `--compression 0-100`
+**GPT:** `--background auto|opaque|transparent` · `--nobg` (shortcut for transparent → auto-routes to gpt-image-1.5) · `--gpt-1K` / `--gpt-2K` (native 2K on gpt-image-2; 1K is default) · `--moderation auto|low` · `--compression 0-100`
+
+> **Batch consistency:** GPT with `--variants N` (max 8) on a single prompt returns a character-consistent set on gpt-image-2.
 
 **Reference / edit** (single-provider): `--reference IMG` (multiple allowed) · `--edit IMG` · `--edit-latest [DIR]` · `--mask IMG`
 
 **Sessions** (single-provider): `--session NAME` · `--continue` · `--reset-session NAME` · `--list-sessions`
+
+**Analyze + style library** (single-provider, Gemini): `--analyze IMG` · `--save-style NAME` (save analyzed JSON to library) · `--style NAME` (inject saved style into prompt) · `--list-styles`
+
+**Cost tracking:** `--costs` · `--days N` (restrict to last N days)
 
 **Workflow:** `--skipquestions`
 
@@ -230,31 +242,39 @@ With `--text`, low automatically becomes 1K + Pro.
 python3 ~/.claude/skills/image/generate.py "illustration for a Status Quo Bias column" \
   --concept --prompts "editorial vector, person frozen at fork in road|metaphorical photorealistic, anchor pulling someone down|3D isometric comfort zone|abstract minimalist with weights"
 
-# Hi-quality logo with GPT (strong instruction-following)
-python3 ~/.claude/skills/image/generate.py "minimalist logo, geometric brain icon" --hq --gpt
+# Iterating in medium (default) — product in a new setting
+python3 ~/.claude/skills/image/generate.py "place this bottle on a natural stone counter, morning light" --reference bottle.jpg --gemini
 
-# Photorealistic lifestyle scene with Gemini Pro
-python3 ~/.claude/skills/image/generate.py "someone working from home at the kitchen table, morning light" --hq --gemini
+# Recognizable person in scene (GPT for face fidelity) — still medium during iteration
+python3 ~/.claude/skills/image/generate.py "this person as a speaker at a TEDx stage" --reference photo.jpg --gpt
 
-# Infographic with text (GPT for text rendering)
-python3 ~/.claude/skills/image/generate.py "infographic about confirmation bias with labels and title" --text --gpt --hq
-
-# Product in a new setting
-python3 ~/.claude/skills/image/generate.py "place this bottle on a natural stone counter, morning light" --reference bottle.jpg --gemini --quality high
-
-# Recognizable person in scene (GPT for face fidelity)
-python3 ~/.claude/skills/image/generate.py "this person as a speaker at a TEDx stage" --reference photo.jpg --gpt --hq
-
-# Remove people from a photo
-python3 ~/.claude/skills/image/generate.py "remove all other people around the central person" --edit photo.jpg --gpt --skipquestions
-
-# Banner with aspect ratio
-python3 ~/.claude/skills/image/generate.py "LinkedIn banner about cognitive biases" --gemini --aspect-ratio 21:9 --quality high
-
-# Iterative session
-python3 ~/.claude/skills/image/generate.py "futuristic dashboard, dark mode" --session dash --gemini --quality medium
+# Iterative session — medium throughout
+python3 ~/.claude/skills/image/generate.py "futuristic dashboard, dark mode" --session dash --gemini
 python3 ~/.claude/skills/image/generate.py "add a chart on the right" --continue
 python3 ~/.claude/skills/image/generate.py "warmer color palette" --continue
+
+# Only when you ask for the final version: HQ
+python3 ~/.claude/skills/image/generate.py "minimalist logo, geometric brain icon" --hq --gpt
+python3 ~/.claude/skills/image/generate.py "infographic about confirmation bias with labels and title" --text --gpt --hq
+
+# Transparent PNG logo — auto-routes to gpt-image-1.5
+python3 ~/.claude/skills/image/generate.py "minimalist geometric brain icon, vector style" --gpt --nobg --hq
+
+# Native 2K on gpt-image-2 (only on --hq, never auto)
+python3 ~/.claude/skills/image/generate.py "editorial illustration about decision fatigue" --gpt --hq --gpt-2K
+
+# Character-consistent set of 6 variants in one batch (medium iteration)
+python3 ~/.claude/skills/image/generate.py "founder portrait, four-point lighting, neutral grey backdrop" --gpt --variants 6
+
+# Analyze an image + save its style as a reusable fingerprint
+python3 ~/.claude/skills/image/generate.py --analyze reference.jpg --save-style brand-look
+
+# Generate a new subject in that saved style
+python3 ~/.claude/skills/image/generate.py "a workspace scene" --style brand-look --gemini
+
+# Show what this project has cost so far
+python3 ~/.claude/skills/image/generate.py --costs
+python3 ~/.claude/skills/image/generate.py --costs --days 1
 ```
 
 ---
@@ -269,6 +289,9 @@ Files land in the current working directory:
 - A `.txt` sidecar per image with the prompt + settings used
 
 Session state lives per project folder in `./.image-sessions/{name}.json`.
+Cost log per project: `./.image-sessions/costs.json`.
+Style library (user-global, reusable across projects):
+`~/.claude/skills/image/.styles/{name}.json`.
 
 > Generated images, sidecars and session state are listed in
 > [.gitignore](.gitignore) and are deliberately not committed.
@@ -283,7 +306,7 @@ Session state lives per project folder in `./.image-sessions/{name}.json`.
 | Text in image | Excellent (incl. non-Latin) | Good, less dense |
 | Public figures | Allowed | Often blocked |
 | Speed | ~3 sec | 10–15 sec |
-| Max resolution | ~1536×1024 | 4K (NB2 and Pro) |
+| Max resolution | 2K native (gpt-image-2 via `--gpt-2K`); 1024×1536 default | 4K (NB2 and Pro) |
 | Native chat sessions | No (edit-chain) | Yes (thought signatures) |
 | Reference images | Yes (image.edit) | Yes (up to 14 for Pro) |
 | Edit with mask | Yes | No (semantic inpainting via prompt) |
@@ -308,7 +331,8 @@ Session state lives per project folder in `./.image-sessions/{name}.json`.
 
 | File | Role |
 |---|---|
-| `SKILL.md` | Skill instructions for Claude (decision flow, provider choice) |
+| `SKILL.md` | Skill instructions for Claude (decision flow, cost discipline, quick reference) |
+| `references/` | Progressive-disclosure detail files loaded by Claude on demand (provider matrix, concept mode, modes & examples) |
 | `generate.example.py` | The script without keys — copy to `generate.py` |
 | `generate.py` | Your working script with keys — **not** in git (`.gitignore`) |
 | `setup.py` | Setup script: deps, keys, local install + bundle build |

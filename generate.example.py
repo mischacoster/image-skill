@@ -65,7 +65,7 @@ import os
 import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -123,8 +123,21 @@ QUALITY_TO_GEMINI = {
 
 QUALITY_OPTIONS = ["low", "medium", "high"]
 FORMAT_OPTIONS = ["png", "jpeg", "webp"]
-BACKGROUND_OPTIONS = ["auto", "opaque"]
+BACKGROUND_OPTIONS = ["auto", "opaque", "transparent"]
 MODERATION_OPTIONS = ["auto", "low"]
+
+# gpt-image-2 does not support transparent backgrounds. Fall back to 1.5.
+GPT_MODEL_DEFAULT = "gpt-image-2"
+GPT_MODEL_TRANSPARENT = "gpt-image-1.5"
+GPT_MAX_BATCH = 8
+
+# Native 2K support is gpt-image-2 only. Multiplies dimensions by 2.
+GPT_SIZE_2K = {
+    "square":    "2048x2048",
+    "landscape": "2560x1440",
+    "portrait":  "1440x2560",
+    "auto":      "auto",
+}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
 DEFAULT_LATEST_DIRS = [
@@ -134,6 +147,35 @@ DEFAULT_LATEST_DIRS = [
 
 SESSIONS_DIR_NAME = ".image-sessions"
 LAST_SESSION_FILE = "_last_session.txt"
+COSTS_FILE = "costs.json"
+STYLES_DIR = Path.home() / ".claude" / "skills" / "image" / ".styles"
+
+# Cost estimates in USD per image. Approximate; actual API charges may vary.
+# Updated: 2026-05. Re-verify on a per-quarter basis.
+GPT_COSTS = {
+    "gpt-image-2": {
+        "1024x1024": {"low": 0.006, "medium": 0.053, "high": 0.211},
+        "1024x1536": {"low": 0.011, "medium": 0.063, "high": 0.317},
+        "1536x1024": {"low": 0.011, "medium": 0.063, "high": 0.317},
+        "2048x2048": {"low": 0.024, "medium": 0.212, "high": 0.844},
+        "2560x1440": {"low": 0.027, "medium": 0.197, "high": 0.792},
+        "1440x2560": {"low": 0.027, "medium": 0.197, "high": 0.792},
+    },
+    "gpt-image-1.5": {
+        "1024x1024": {"low": 0.004, "medium": 0.033, "high": 0.133},
+        "1024x1536": {"low": 0.008, "medium": 0.050, "high": 0.200},
+        "1536x1024": {"low": 0.008, "medium": 0.050, "high": 0.200},
+    },
+}
+
+GEMINI_COSTS = {
+    "gemini-3-pro-image-preview":      {"512": 0.04, "1K": 0.04, "2K": 0.06, "4K": 0.10},
+    "gemini-3.1-flash-image-preview":  {"512": 0.01, "1K": 0.02, "2K": 0.03, "4K": 0.04},
+    "gemini-2.5-flash-image":          {"1K": 0.005, "2K": 0.010, "4K": 0.020},
+}
+
+# Cost of one analyze call (cheap multimodal vision)
+ANALYZE_COST = 0.005
 
 PRESETS = {
     "concept": {
@@ -288,6 +330,136 @@ def list_sessions():
 
 
 # ============================================================================
+# COST TRACKING
+# ============================================================================
+
+def estimate_cost_gpt(model, size, quality, n):
+    rates = GPT_COSTS.get(model, {})
+    rate = rates.get(size, {}).get(quality, 0.0)
+    return round(rate * n, 4)
+
+
+def estimate_cost_gemini(model, resolution, n):
+    rates = GEMINI_COSTS.get(model, {})
+    rate = rates.get(str(resolution), 0.0)
+    return round(rate * n, 4)
+
+
+def record_cost(provider, model, dim, quality, n, prompt, est_cost):
+    """Append a cost entry to .image-sessions/costs.json. Best-effort; never raises."""
+    try:
+        p = sessions_dir() / COSTS_FILE
+        log = []
+        if p.is_file():
+            try:
+                log = json.loads(p.read_text())
+            except json.JSONDecodeError:
+                log = []
+        log.append({
+            "ts": datetime.now().isoformat(timespec="seconds"),
+            "provider": provider,
+            "model": model,
+            "dim": dim,
+            "quality": quality,
+            "n": n,
+            "prompt": (prompt or "")[:120],
+            "est_usd": round(est_cost, 4),
+        })
+        p.write_text(json.dumps(log, indent=2))
+    except Exception as e:
+        print(f"  (cost-log warning: {e})")
+
+
+def show_costs(days=None):
+    p = sessions_dir() / COSTS_FILE
+    if not p.is_file():
+        print(f"No cost log in {p.parent}")
+        return
+    try:
+        log = json.loads(p.read_text())
+    except json.JSONDecodeError:
+        sys.exit(f"Cost log corrupt: {p}")
+    if days:
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+        log = [e for e in log if e.get("ts", "") >= cutoff]
+    if not log:
+        print(f"No cost entries in range ({days} days)." if days else "No cost entries.")
+        return
+    by_provider = {}
+    for e in log:
+        by_provider[e["provider"]] = by_provider.get(e["provider"], 0.0) + e.get("est_usd", 0.0)
+    total = sum(by_provider.values())
+    scope = f" (last {days} days)" if days else ""
+    print(f"Cost log{scope}: {len(log)} entries")
+    for prov, sub in sorted(by_provider.items()):
+        print(f"  {prov}: ${sub:.2f}")
+    print(f"  ---")
+    print(f"  total: ${total:.2f}")
+    print(f"\nEstimates only. Actual API charges may differ. Pricing updated 2026-05.")
+
+
+# ============================================================================
+# STYLE LIBRARY (analyze mode output → reusable style fingerprints)
+# ============================================================================
+
+def styles_dir():
+    STYLES_DIR.mkdir(parents=True, exist_ok=True)
+    return STYLES_DIR
+
+
+def style_path(name):
+    safe = re.sub(r'[^\w-]+', '-', name).strip('-').lower()
+    if not safe:
+        sys.exit(f"Invalid style name: {name!r}")
+    return styles_dir() / f"{safe}.json"
+
+
+def save_style(name, data):
+    p = style_path(name)
+    data = dict(data)
+    data["_name"] = name
+    data["_saved"] = datetime.now().isoformat(timespec="seconds")
+    p.write_text(json.dumps(data, indent=2))
+    return p
+
+
+def load_style(name):
+    p = style_path(name)
+    if not p.is_file():
+        sys.exit(f"Style not found: {name}. Use --list-styles to see saved styles.")
+    return json.loads(p.read_text())
+
+
+def list_styles():
+    d = styles_dir()
+    styles = sorted(p.stem for p in d.glob("*.json"))
+    if not styles:
+        print(f"No styles in {d}. Save one with: --analyze IMAGE --save-style NAME")
+        return
+    print(f"Styles in {d}:")
+    for s in styles:
+        data = json.loads((d / f"{s}.json").read_text())
+        subj = data.get("subject", "")[:60]
+        style = data.get("style", "")[:60]
+        print(f"  {s}")
+        if subj or style:
+            print(f"    {style} — {subj}")
+
+
+def inject_style(prompt, style_data):
+    """Prepend a human-readable style preamble to the prompt."""
+    parts = []
+    for key in ("style", "composition", "lighting", "palette", "mood", "medium", "details"):
+        v = style_data.get(key)
+        if v:
+            parts.append(f"{key}: {v}")
+    if not parts:
+        return prompt
+    preamble = "Generate in this style — " + "; ".join(parts) + ".\n\nSubject/scene: "
+    return preamble + prompt
+
+
+# ============================================================================
 # OPENAI PROVIDER
 # ============================================================================
 
@@ -305,10 +477,24 @@ def get_openai_client():
 def gpt_generate_one(args, prompt, count, input_images):
     """Run ONE OpenAI call with given prompt and count. Returns list of (bytes, format)."""
     client = get_openai_client()
-    actual_size = SIZE_TO_GPT.get(args.size, args.size)
+
+    transparent = args.background == "transparent"
+    if transparent:
+        model = GPT_MODEL_TRANSPARENT
+        size_map = SIZE_TO_GPT
+        if args.format == "jpeg":
+            print("  Note: transparent requires PNG or WebP, switching format")
+            args.format = "png"
+    else:
+        model = GPT_MODEL_DEFAULT
+        size_map = GPT_SIZE_2K if args.gpt_2k else SIZE_TO_GPT
+    actual_size = size_map.get(args.size, args.size)
+
+    if count > GPT_MAX_BATCH:
+        sys.exit(f"GPT batch size {count} exceeds max {GPT_MAX_BATCH}. Use multiple calls.")
 
     kwargs = {
-        "model": "gpt-image-2",
+        "model": model,
         "prompt": prompt,
         "size": actual_size,
         "quality": args.quality,
@@ -332,6 +518,9 @@ def gpt_generate_one(args, prompt, count, input_images):
     else:
         kwargs["output_format"] = args.format
         response = client.images.generate(**kwargs)
+
+    est = estimate_cost_gpt(model, actual_size, args.quality, count)
+    record_cost("gpt", model, actual_size, args.quality, count, prompt, est)
 
     return [(item.b64_json, args.format) for item in response.data]
 
@@ -442,6 +631,9 @@ def gemini_generate_one_stateless(args, settings, prompt, input_images):
     )
     for part in response.candidates[0].content.parts:
         if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
+            est = estimate_cost_gemini(settings["model"], settings["resolution"], 1)
+            record_cost("gemini", settings["model"], settings["resolution"],
+                        args.quality, 1, prompt, est)
             return (part.inline_data.data, "png")
     raise RuntimeError("Gemini returned no image data")
 
@@ -469,8 +661,50 @@ def gemini_generate_session(args, settings, session_state, prompt, input_images)
 
     for part in response.candidates[0].content.parts:
         if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
+            est = estimate_cost_gemini(settings["model"], settings["resolution"], 1)
+            record_cost("gemini", settings["model"], settings["resolution"],
+                        args.quality, 1, prompt, est)
             return (part.inline_data.data, "png")
     raise RuntimeError("Gemini session returned no image data")
+
+
+# ============================================================================
+# ANALYZE MODE (image → structured JSON style fingerprint)
+# ============================================================================
+
+ANALYZE_MODEL = "gemini-2.5-flash"
+ANALYZE_PROMPT = """Analyze this image and return ONLY a JSON object with this exact structure (no markdown fences, no commentary):
+{
+  "subject": "1-line description of the main subject or scene",
+  "style": "art/illustration/photography style (e.g. 'editorial vector illustration', 'photorealistic 35mm portrait')",
+  "composition": "framing and viewpoint (e.g. 'close-up centered', 'wide shot low angle', 'isometric top-down')",
+  "lighting": "lighting setup and direction (e.g. 'soft window light from left', 'dramatic high-contrast key light')",
+  "palette": "dominant colors and color philosophy (e.g. 'monochrome blue', 'muted earth tones with single red accent')",
+  "mood": "emotional tone (e.g. 'serene', 'energetic', 'dystopian')",
+  "medium": "rendering medium (e.g. 'digital painting', 'photography', '3D render', 'watercolor')",
+  "details": "any distinctive details (texture, line weight, level of abstraction)"
+}"""
+
+
+def analyze_image(image_path):
+    """Return a dict with style/composition/etc. fields. Uses Gemini 2.5 Flash."""
+    from google.genai import types
+    from PIL import Image as PILImage
+    client = get_gemini_client()
+    image = PILImage.open(image_path)
+    response = client.models.generate_content(
+        model=ANALYZE_MODEL,
+        contents=[ANALYZE_PROMPT, image],
+        config=types.GenerateContentConfig(response_modalities=["TEXT"]),
+    )
+    text = response.candidates[0].content.parts[0].text.strip()
+    # Strip code fences if model added them
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.MULTILINE).strip()
+    record_cost("gemini-analyze", ANALYZE_MODEL, "n/a", "analyze", 1, str(image_path), ANALYZE_COST)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        sys.exit(f"Analyze returned invalid JSON: {e}\nRaw output:\n{text}")
 
 
 def gemini_generate(args, jobs, input_images, session_state):
@@ -610,6 +844,20 @@ def main():
     parser.add_argument("--list-sessions", action="store_true",
                         help="List all sessions in current folder and exit")
 
+    # Terminal modes (exit early after action)
+    parser.add_argument("--costs", action="store_true",
+                        help="Show cost log for this project and exit")
+    parser.add_argument("--days", type=int, metavar="N",
+                        help="With --costs: restrict to last N days")
+    parser.add_argument("--list-styles", action="store_true",
+                        help="List saved style fingerprints and exit")
+    parser.add_argument("--analyze", metavar="IMAGE",
+                        help="Analyze an image into a style JSON. Pair with --save-style NAME.")
+    parser.add_argument("--save-style", metavar="NAME",
+                        help="With --analyze: save the result under this name")
+    parser.add_argument("--style", metavar="NAME",
+                        help="Inject a saved style fingerprint into the prompt before generation")
+
     parser.add_argument("prompt", nargs="?", help="Text prompt (or use --prompts for multiple)")
 
     # Presets
@@ -648,6 +896,13 @@ def main():
 
     # GPT-specific
     parser.add_argument("--background", choices=BACKGROUND_OPTIONS)
+    parser.add_argument("--nobg", action="store_true",
+                        help="Shortcut for --background transparent (routes to gpt-image-1.5)")
+    gpt_res = parser.add_mutually_exclusive_group()
+    gpt_res.add_argument("--gpt-1K", "--gpt-1k", dest="gpt_1k", action="store_true",
+                         help="GPT default 1K resolution (explicit; same as no flag)")
+    gpt_res.add_argument("--gpt-2K", "--gpt-2k", dest="gpt_2k", action="store_true",
+                         help="GPT native 2K resolution on gpt-image-2. Ignored when --nobg is set.")
     parser.add_argument("--moderation", choices=MODERATION_OPTIONS)
     parser.add_argument("--compression", type=int, metavar="0-100")
 
@@ -675,6 +930,24 @@ def main():
         list_sessions()
         return
 
+    # Terminal modes
+    if args.costs:
+        show_costs(days=args.days)
+        return
+    if args.list_styles:
+        list_styles()
+        return
+    if args.analyze:
+        if not Path(args.analyze).is_file():
+            sys.exit(f"Analyze image not found: {args.analyze}")
+        print(f"Analyzing: {args.analyze}")
+        result = analyze_image(args.analyze)
+        print(json.dumps(result, indent=2))
+        if args.save_style:
+            saved = save_style(args.save_style, result)
+            print(f"\nSaved style: {saved}")
+        return
+
     # Validate prompt source
     if not args.prompt and not args.prompts:
         parser.error("Need either a positional prompt or --prompts.")
@@ -692,9 +965,21 @@ def main():
         variant_prompts = [args.prompt]
         base_prompt = args.prompt
 
+    # Style injection (loaded fingerprint → prepended to every prompt)
+    if args.style:
+        style_data = load_style(args.style)
+        print(f"Style: {args.style} ({style_data.get('style', 'unnamed')})")
+        variant_prompts = [inject_style(p, style_data) for p in variant_prompts]
+
     # Validation
     if args.compression is not None and not (0 <= args.compression <= 100):
         sys.exit("--compression must be between 0 and 100")
+
+    # --nobg is a shortcut: set background=transparent (which triggers model fallback in GPT call)
+    if args.nobg:
+        if args.background and args.background not in ("auto", "transparent"):
+            sys.exit(f"--nobg conflicts with --background {args.background}")
+        args.background = "transparent"
 
     # Resolve --edit-latest
     if args.edit_latest:
@@ -760,6 +1045,15 @@ def main():
 
     # Decide providers
     providers = decide_providers(args)
+
+    # Noise build-up warning: gpt-image-2 edit-chains degrade after ~3 turns.
+    # Show a non-blocking notice so the user can choose to reset.
+    if session_state is not None and providers == ["gpt"]:
+        turn_next = session_state.get("turn_count", 0) + 1
+        if turn_next > 3:
+            print(f"  Note: GPT session at turn {turn_next}. gpt-image-2 edit-chains can")
+            print(f"        accumulate noise after ~3 refines. If quality degrades, use")
+            print(f"        --reset-session {session_name} and restart from the last output.")
 
     # Sessions: single provider, single prompt only
     if session_state is not None:
