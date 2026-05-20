@@ -148,6 +148,59 @@ DEFAULT_LATEST_DIRS = [
 SESSIONS_DIR_NAME = ".image-sessions"
 LAST_SESSION_FILE = "_last_session.txt"
 COSTS_FILE = "costs.json"
+
+CHEATSHEET = """\
+PRESETS                                  PROVIDER
+  --concept    exploratory dual 4-shot     --gpt        OpenAI only
+  --hq         FINAL hi-res asset          --gemini     Gemini only
+  --web        2 medium variants           (none)       dual for --concept
+  --social     4 medium portraits
+
+QUALITY (default: medium for iteration; HQ only on explicit request)
+  --quality low|medium|high                --gpt-1K / --gpt-2K  native 2K on gpt-image-2
+
+GEMINI-SPECIFIC                          GPT-SPECIFIC
+  --aspect-ratio R                         --background auto|opaque|transparent
+  --resolution 512|1K|2K|4K                --nobg        transparent → gpt-image-1.5
+  --gemini-model flash|nb2|pro|auto        --moderation  auto|low
+  --grounding  Google Search               --compression 0-100
+
+PROMPTS / BATCH
+  --prompts "p1|p2|p3|p4"     pipe-split diverse concept prompts
+  --variants N  (-n N)        N images per call (GPT max 8, character-consistent)
+  --format png|jpeg|webp      GPT output format
+  --text                      modifier: force Gemini Pro (best text rendering)
+
+REFERENCE / EDIT (single-provider)
+  --reference IMG (multiple)  composition reference(s)
+  --edit IMG                  edit an existing image
+  --edit-latest [DIR]         auto-pick newest image (default Desktop+Downloads)
+  --mask IMG                  masked edit (GPT only)
+
+SESSIONS (multi-turn, single-provider)
+  --session NAME              start or resume a named session
+  --continue                  use last-used session in this folder
+  --reset-session NAME        delete a session
+  --list-sessions             list sessions in this folder
+
+ANALYZE / STYLE LIBRARY
+  --analyze IMG               image → JSON style fingerprint (Gemini 2.5 Flash)
+  --save-style NAME           pair with --analyze to store the result
+  --style NAME                inject saved style as prompt preamble
+  --list-styles               list saved styles (user-global)
+
+COSTS
+  --costs                     show per-project cost log
+  --days N                    restrict --costs to last N days
+
+WORKFLOW
+  --skipquestions             skip interactive questions, use defaults
+  --help / -h                 show this cheatsheet and exit
+  --help-full                 argparse's full verbose help with all choices
+
+Examples: README.md or references/modes-and-examples.md
+Decision flow: SKILL.md (cost discipline, when to escalate to HQ)
+"""
 STYLES_DIR = Path.home() / ".claude" / "skills" / "image" / ".styles"
 
 # Cost estimates in USD per image. Approximate; actual API charges may vary.
@@ -833,11 +886,20 @@ def run_provider(provider, args, jobs, input_images, session_state):
 
 
 def main():
+    # Intercept --help / -h before argparse runs and print our compact cheatsheet.
+    # --help-full still gets argparse's full verbose output for those who want it.
+    if any(a in ("-h", "--help") for a in sys.argv[1:]):
+        print(CHEATSHEET)
+        return
+
     parser = argparse.ArgumentParser(
         description="Dual-provider image generator: OpenAI GPT-Image-2 + Google Gemini Nano Banana",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
+        add_help=False,  # we handle -h/--help ourselves above
     )
+    parser.add_argument("--help-full", action="help",
+                        help="Show argparse's full verbose help and exit")
 
     parser.add_argument("--reset-session", metavar="NAME",
                         help="Delete a stored session and exit")
